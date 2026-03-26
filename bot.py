@@ -179,7 +179,15 @@ async def button_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if data == "show_sources":
         sources = config.get("source_chats", [])
         if sources:
-            text = "📡 *Quell-Gruppen:*\n" + "\n".join(f"• `{s}`" for s in sources)
+            lines = []
+            for s in sources:
+                try:
+                    chat = await ctx.bot.get_chat(s)
+                    name = chat.title or "Unbekannt"
+                except Exception:
+                    name = "⚠️ Kein Zugriff"
+                lines.append(f"• `{s}` — {name}")
+            text = "📡 *Quell-Gruppen:*\n" + "\n".join(lines)
         else:
             text = "Keine Quell-Gruppen konfiguriert."
         await query.edit_message_text(text, parse_mode="Markdown")
@@ -192,7 +200,14 @@ async def button_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         sources = config.get("source_chats", [])
         if not sources:
             return await query.edit_message_text("Keine Quell-Gruppen vorhanden.")
-        keyboard = [[InlineKeyboardButton(f"❌ {s}", callback_data=f"del_source_{s}")] for s in sources]
+        keyboard = []
+        for s in sources:
+            try:
+                chat = await ctx.bot.get_chat(s)
+                name = chat.title or str(s)
+            except Exception:
+                name = str(s)
+            keyboard.append([InlineKeyboardButton(f"❌ {s} — {name}", callback_data=f"del_source_{s}")])
         await query.edit_message_text("Welche Gruppe entfernen?", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data.startswith("del_source_"):
