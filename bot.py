@@ -219,7 +219,15 @@ async def button_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     elif data == "show_target":
         t = config.get("target_channel")
-        text = f"🎯 Ziel-Kanal: `{t}`" if t else "Kein Ziel-Kanal gesetzt."
+        if t:
+            try:
+                chat = await ctx.bot.get_chat(t)
+                name = chat.title or "Unbekannt"
+            except Exception:
+                name = "⚠️ Kein Zugriff"
+            text = f"🎯 Ziel-Kanal: `{t}` — {name}"
+        else:
+            text = "Kein Ziel-Kanal gesetzt."
         await query.edit_message_text(text, parse_mode="Markdown")
 
     elif data == "set_target":
