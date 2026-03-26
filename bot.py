@@ -270,6 +270,9 @@ async def button_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ── Text-Input-Handler ──────────────────────────────────
 async def text_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    # Nur in Privatchats antworten
+    if update.message.chat.type != "private":
+        return
     if not is_admin(update.effective_user.id):
         return
 
