@@ -300,23 +300,46 @@ async def text_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["awaiting"] = None
 
     if awaiting == "add_source":
-        try:
-            chat_id = int(text)
-            if chat_id not in config["source_chats"]:
-                config["source_chats"].append(chat_id)
-                save_config(config)
-            await update.message.reply_text(f"✅ Gruppe `{chat_id}` hinzugefügt.", parse_mode="Markdown")
-        except ValueError:
-            await update.message.reply_text("❌ Ungültige Chat-ID.")
+        ids_raw = [x.strip() for x in text.replace("\n", ",").split(",") if x.strip()]
+        added = []
+        invalid = []
+        for raw in ids_raw:
+            try:
+                cid = int(raw)
+                if cid not in config["source_chats"]:
+                    config["source_chats"].append(cid)
+                    added.append(str(cid))
+            except ValueError:
+                invalid.append(raw)
+        save_config(config)
+        parts = []
+        if added:
+            parts.append(f"✅ Hinzugefügt: {', '.join(added)}")
+        if invalid:
+            parts.append(f"❌ Ungültig: {', '.join(invalid)}")
+        await update.message.reply_text("\n".join(parts) or "Keine Änderungen.")
 
     elif awaiting == "set_target":
-        try:
-            chat_id = int(text)
-            config["target_channel"] = chat_id
-            save_config(config)
-            await update.message.reply_text(f"✅ Ziel-Kanal auf `{chat_id}` gesetzt.", parse_mode="Markdown")
-        except ValueError:
-            await update.message.reply_text("❌ Ungültige Chat-ID.")
+        ids_raw = [x.strip() for x in text.replace("\n", ",").split(",") if x.strip()]
+        added = []
+        invalid = []
+        if "target_channels" not in config:
+            config["target_channels"] = []
+        for raw in ids_raw:
+            try:
+                cid = int(raw)
+                if cid not in config["target_channels"]:
+                    config["target_channels"].append(cid)
+                    added.append(str(cid))
+            except ValueError:
+                invalid.append(raw)
+        save_config(config)
+        parts = []
+        if added:
+            parts.append(f"✅ Ziel-Kanäle hinzugefügt: {', '.join(added)}")
+        if invalid:
+            parts.append(f"❌ Ungültig: {', '.join(invalid)}")
+        await update.message.reply_text("\n".join(parts) or "Keine Änderungen.")
 
 
 # ── Media-Handler ────────────────────────────────────────
