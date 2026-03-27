@@ -114,7 +114,7 @@ def get_stats() -> dict:
 
 # ── Config ───────────────────────────────────────────────
 def load_config() -> dict:
-    default = {"admin_ids": [], "source_chats": [], "target_channel": None, "caption_template": "📹 Von: {user} | 📅 {date} | 💬 Quelle: {source}"}
+    default = {"admin_ids": [], "source_chats": [], "target_channels": [], "caption_template": "📹 Von: {user} | 📅 {date} | 💬 Quelle: {source}"}
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r") as f:
             data = json.load(f)
