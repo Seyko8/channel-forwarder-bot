@@ -201,7 +201,7 @@ async def button_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     elif data == "add_source":
         ctx.user_data["awaiting"] = "add_source"
-        await query.edit_message_text("Sende mir die Chat-ID der Gruppe (z.B. `-1001234567890`):")
+        await query.edit_message_text("Sende mir die Chat-IDs der Gruppen.\nMehrere IDs mit Komma oder Zeilenumbruch trennen.\n\nBeispiel: `-1001234567890, -1009876543210`", parse_mode="Markdown")
 
     elif data == "remove_source":
         sources = config.get("source_chats", [])
