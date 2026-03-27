@@ -151,15 +151,6 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("👋 Willkommen zurück! Nutze /menu für Einstellungen.")
     else:
         await update.message.reply_text("⛔ Kein Zugriff.")
-        config["admin_ids"].append(user.id)
-        save_config(config)
-        await update.message.reply_text(
-            f"✅ Du ({user.first_name}) bist jetzt Admin!\nNutze /menu für Einstellungen."
-        )
-    elif is_admin(user.id):
-        await update.message.reply_text("👋 Willkommen zurück! Nutze /menu für Einstellungen.")
-    else:
-        await update.message.reply_text("⛔ Kein Zugriff.")
 
 
 # ── /menu ────────────────────────────────────────────────
