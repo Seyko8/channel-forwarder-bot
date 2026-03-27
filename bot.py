@@ -114,12 +114,17 @@ def get_stats() -> dict:
 
 # ── Config ───────────────────────────────────────────────
 def load_config() -> dict:
-    default = {"admin_ids": [], "source_chats": [], "target_channel": None, "caption_template": "📹 Von: {user} | 📅 {date} | 💬 Quelle: {source}"}
+    default = {"admin_ids": [], "source_chats": [], "target_channels": [], "caption_template": "📹 Von: {user} | 📅 {date} | 💬 Quelle: {source}"}
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r") as f:
             data = json.load(f)
             for k, v in default.items():
                 data.setdefault(k, v)
+            # Migration: alte target_channel -> target_channels
+            if "target_channel" in data:
+                old = data.pop("target_channel")
+                if old and old not in data["target_channels"]:
+                    data["target_channels"].append(old)
             return data
     return default
 
@@ -163,10 +168,11 @@ async def menu(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton("📡 Quell-Gruppen anzeigen", callback_data="show_sources")],
-        [InlineKeyboardButton("➕ Quell-Gruppe hinzufügen", callback_data="add_source")],
+        [InlineKeyboardButton("➕ Quell-Gruppen hinzufügen", callback_data="add_source")],
         [InlineKeyboardButton("➖ Quell-Gruppe entfernen", callback_data="remove_source")],
-        [InlineKeyboardButton("🎯 Ziel-Kanal anzeigen", callback_data="show_target")],
-        [InlineKeyboardButton("🎯 Ziel-Kanal setzen", callback_data="set_target")],
+        [InlineKeyboardButton("🎯 Ziel-Kanäle anzeigen", callback_data="show_target")],
+        [InlineKeyboardButton("🎯 Ziel-Kanäle hinzufügen", callback_data="set_target")],
+        [InlineKeyboardButton("➖ Ziel-Kanal entfernen", callback_data="remove_target")],
         [InlineKeyboardButton("📊 Statistiken", callback_data="show_stats")],
         [InlineKeyboardButton("✏️ Caption-Template", callback_data="show_caption")],
     ]
@@ -200,7 +206,7 @@ async def button_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     elif data == "add_source":
         ctx.user_data["awaiting"] = "add_source"
-        await query.edit_message_text("Sende mir die Chat-ID der Gruppe (z.B. `-1001234567890`):")
+        await query.edit_message_text("Sende mir die Chat-IDs der Gruppen.\nMehrere IDs mit Komma oder Zeilenumbruch trennen.\n\nBeispiel: `-1001234567890, -1009876543210`", parse_mode="Markdown")
 
     elif data == "remove_source":
         sources = config.get("source_chats", [])
@@ -224,21 +230,45 @@ async def button_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"✅ Gruppe `{chat_id}` entfernt.", parse_mode="Markdown")
 
     elif data == "show_target":
-        t = config.get("target_channel")
-        if t:
-            try:
-                chat = await ctx.bot.get_chat(t)
-                name = chat.title or "Unbekannt"
-            except Exception:
-                name = "⚠️ Kein Zugriff"
-            text = f"🎯 Ziel-Kanal: `{t}` — {name}"
+        targets = config.get("target_channels", [])
+        if targets:
+            lines = []
+            for t in targets:
+                try:
+                    chat = await ctx.bot.get_chat(t)
+                    name = chat.title or "Unbekannt"
+                except Exception:
+                    name = "⚠️ Kein Zugriff"
+                lines.append(f"• `{t}` — {name}")
+            text = "🎯 *Ziel-Kanäle:*\n" + "\n".join(lines)
         else:
-            text = "Kein Ziel-Kanal gesetzt."
+            text = "Keine Ziel-Kanäle gesetzt."
         await query.edit_message_text(text, parse_mode="Markdown")
 
     elif data == "set_target":
         ctx.user_data["awaiting"] = "set_target"
-        await query.edit_message_text("Sende mir die Chat-ID des Ziel-Kanals:")
+        await query.edit_message_text("Sende mir die Chat-IDs der Ziel-Kanäle.\nMehrere IDs mit Komma oder Zeilenumbruch trennen.\n\nBeispiel: `-1001234567890, -1009876543210`", parse_mode="Markdown")
+
+    elif data == "remove_target":
+        targets = config.get("target_channels", [])
+        if not targets:
+            return await query.edit_message_text("Keine Ziel-Kanäle vorhanden.")
+        keyboard = []
+        for t in targets:
+            try:
+                chat = await ctx.bot.get_chat(t)
+                name = chat.title or str(t)
+            except Exception:
+                name = str(t)
+            keyboard.append([InlineKeyboardButton(f"❌ {t} — {name}", callback_data=f"del_target_{t}")])
+        await query.edit_message_text("Welchen Ziel-Kanal entfernen?", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data.startswith("del_target_"):
+        chat_id = int(data.replace("del_target_", ""))
+        if chat_id in config.get("target_channels", []):
+            config["target_channels"].remove(chat_id)
+            save_config(config)
+        await query.edit_message_text(f"✅ Ziel-Kanal `{chat_id}` entfernt.", parse_mode="Markdown")
 
     elif data == "show_stats":
         stats = get_stats()
@@ -275,23 +305,46 @@ async def text_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["awaiting"] = None
 
     if awaiting == "add_source":
-        try:
-            chat_id = int(text)
-            if chat_id not in config["source_chats"]:
-                config["source_chats"].append(chat_id)
-                save_config(config)
-            await update.message.reply_text(f"✅ Gruppe `{chat_id}` hinzugefügt.", parse_mode="Markdown")
-        except ValueError:
-            await update.message.reply_text("❌ Ungültige Chat-ID.")
+        ids_raw = [x.strip() for x in text.replace("\n", ",").split(",") if x.strip()]
+        added = []
+        invalid = []
+        for raw in ids_raw:
+            try:
+                cid = int(raw)
+                if cid not in config["source_chats"]:
+                    config["source_chats"].append(cid)
+                    added.append(str(cid))
+            except ValueError:
+                invalid.append(raw)
+        save_config(config)
+        parts = []
+        if added:
+            parts.append(f"✅ Hinzugefügt: {', '.join(added)}")
+        if invalid:
+            parts.append(f"❌ Ungültig: {', '.join(invalid)}")
+        await update.message.reply_text("\n".join(parts) or "Keine Änderungen.")
 
     elif awaiting == "set_target":
-        try:
-            chat_id = int(text)
-            config["target_channel"] = chat_id
-            save_config(config)
-            await update.message.reply_text(f"✅ Ziel-Kanal auf `{chat_id}` gesetzt.", parse_mode="Markdown")
-        except ValueError:
-            await update.message.reply_text("❌ Ungültige Chat-ID.")
+        ids_raw = [x.strip() for x in text.replace("\n", ",").split(",") if x.strip()]
+        added = []
+        invalid = []
+        if "target_channels" not in config:
+            config["target_channels"] = []
+        for raw in ids_raw:
+            try:
+                cid = int(raw)
+                if cid not in config["target_channels"]:
+                    config["target_channels"].append(cid)
+                    added.append(str(cid))
+            except ValueError:
+                invalid.append(raw)
+        save_config(config)
+        parts = []
+        if added:
+            parts.append(f"✅ Ziel-Kanäle hinzugefügt: {', '.join(added)}")
+        if invalid:
+            parts.append(f"❌ Ungültig: {', '.join(invalid)}")
+        await update.message.reply_text("\n".join(parts) or "Keine Änderungen.")
 
 
 # ── Media-Handler ────────────────────────────────────────
@@ -304,8 +357,8 @@ async def handle_media(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if chat_id not in config.get("source_chats", []):
         return
 
-    target = config.get("target_channel")
-    if not target:
+    targets = config.get("target_channels", [])
+    if not targets:
         return
 
     # Determine media type and file_unique_id
@@ -343,14 +396,18 @@ async def handle_media(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     caption = caption_template.format(user=user_name, date=now, source=source_title)
 
     try:
-        if msg.video:
-            await ctx.bot.send_video(chat_id=target, video=msg.video.file_id, caption=caption)
-        elif msg.photo:
-            await ctx.bot.send_photo(chat_id=target, photo=msg.photo[-1].file_id, caption=caption)
-        elif msg.animation:
-            await ctx.bot.send_animation(chat_id=target, animation=msg.animation.file_id, caption=caption)
-        elif msg.document:
-            await ctx.bot.send_document(chat_id=target, document=msg.document.file_id, caption=caption)
+        for target in targets:
+            try:
+                if msg.video:
+                    await ctx.bot.send_video(chat_id=target, video=msg.video.file_id, caption=caption)
+                elif msg.photo:
+                    await ctx.bot.send_photo(chat_id=target, photo=msg.photo[-1].file_id, caption=caption)
+                elif msg.animation:
+                    await ctx.bot.send_animation(chat_id=target, animation=msg.animation.file_id, caption=caption)
+                elif msg.document:
+                    await ctx.bot.send_document(chat_id=target, document=msg.document.file_id, caption=caption)
+            except Exception as e:
+                logger.error(f"Fehler beim Weiterleiten an {target}: {e}")
 
         record_media(file_unique_id, file_type, chat_id, user_name, msg.message_id)
         logger.info(f"Weitergeleitet: {file_type} von {user_name} aus {source_title}")
