@@ -307,6 +307,7 @@ async def text_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if awaiting == "add_source":
         ids_raw = [x.strip() for x in text.replace("\n", ",").split(",") if x.strip()]
         added = []
+        existing = []
         invalid = []
         for raw in ids_raw:
             try:
@@ -314,12 +315,16 @@ async def text_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 if cid not in config["source_chats"]:
                     config["source_chats"].append(cid)
                     added.append(str(cid))
+                else:
+                    existing.append(str(cid))
             except ValueError:
                 invalid.append(raw)
         save_config(config)
         parts = []
         if added:
             parts.append(f"✅ Hinzugefügt: {', '.join(added)}")
+        if existing:
+            parts.append(f"ℹ️ Bereits vorhanden: {', '.join(existing)}")
         if invalid:
             parts.append(f"❌ Ungültig: {', '.join(invalid)}")
         await update.message.reply_text("\n".join(parts) or "Keine Änderungen.")
@@ -327,6 +332,7 @@ async def text_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     elif awaiting == "set_target":
         ids_raw = [x.strip() for x in text.replace("\n", ",").split(",") if x.strip()]
         added = []
+        existing = []
         invalid = []
         if "target_channels" not in config:
             config["target_channels"] = []
@@ -336,12 +342,16 @@ async def text_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 if cid not in config["target_channels"]:
                     config["target_channels"].append(cid)
                     added.append(str(cid))
+                else:
+                    existing.append(str(cid))
             except ValueError:
                 invalid.append(raw)
         save_config(config)
         parts = []
         if added:
             parts.append(f"✅ Ziel-Kanäle hinzugefügt: {', '.join(added)}")
+        if existing:
+            parts.append(f"ℹ️ Bereits vorhanden: {', '.join(existing)}")
         if invalid:
             parts.append(f"❌ Ungültig: {', '.join(invalid)}")
         await update.message.reply_text("\n".join(parts) or "Keine Änderungen.")
