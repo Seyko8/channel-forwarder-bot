@@ -225,21 +225,45 @@ async def button_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"✅ Gruppe `{chat_id}` entfernt.", parse_mode="Markdown")
 
     elif data == "show_target":
-        t = config.get("target_channel")
-        if t:
-            try:
-                chat = await ctx.bot.get_chat(t)
-                name = chat.title or "Unbekannt"
-            except Exception:
-                name = "⚠️ Kein Zugriff"
-            text = f"🎯 Ziel-Kanal: `{t}` — {name}"
+        targets = config.get("target_channels", [])
+        if targets:
+            lines = []
+            for t in targets:
+                try:
+                    chat = await ctx.bot.get_chat(t)
+                    name = chat.title or "Unbekannt"
+                except Exception:
+                    name = "⚠️ Kein Zugriff"
+                lines.append(f"• `{t}` — {name}")
+            text = "🎯 *Ziel-Kanäle:*\n" + "\n".join(lines)
         else:
-            text = "Kein Ziel-Kanal gesetzt."
+            text = "Keine Ziel-Kanäle gesetzt."
         await query.edit_message_text(text, parse_mode="Markdown")
 
     elif data == "set_target":
         ctx.user_data["awaiting"] = "set_target"
-        await query.edit_message_text("Sende mir die Chat-ID des Ziel-Kanals:")
+        await query.edit_message_text("Sende mir die Chat-IDs der Ziel-Kanäle.\nMehrere IDs mit Komma oder Zeilenumbruch trennen.\n\nBeispiel: `-1001234567890, -1009876543210`", parse_mode="Markdown")
+
+    elif data == "remove_target":
+        targets = config.get("target_channels", [])
+        if not targets:
+            return await query.edit_message_text("Keine Ziel-Kanäle vorhanden.")
+        keyboard = []
+        for t in targets:
+            try:
+                chat = await ctx.bot.get_chat(t)
+                name = chat.title or str(t)
+            except Exception:
+                name = str(t)
+            keyboard.append([InlineKeyboardButton(f"❌ {t} — {name}", callback_data=f"del_target_{t}")])
+        await query.edit_message_text("Welchen Ziel-Kanal entfernen?", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data.startswith("del_target_"):
+        chat_id = int(data.replace("del_target_", ""))
+        if chat_id in config.get("target_channels", []):
+            config["target_channels"].remove(chat_id)
+            save_config(config)
+        await query.edit_message_text(f"✅ Ziel-Kanal `{chat_id}` entfernt.", parse_mode="Markdown")
 
     elif data == "show_stats":
         stats = get_stats()
