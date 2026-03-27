@@ -391,14 +391,18 @@ async def handle_media(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     caption = caption_template.format(user=user_name, date=now, source=source_title)
 
     try:
-        if msg.video:
-            await ctx.bot.send_video(chat_id=target, video=msg.video.file_id, caption=caption)
-        elif msg.photo:
-            await ctx.bot.send_photo(chat_id=target, photo=msg.photo[-1].file_id, caption=caption)
-        elif msg.animation:
-            await ctx.bot.send_animation(chat_id=target, animation=msg.animation.file_id, caption=caption)
-        elif msg.document:
-            await ctx.bot.send_document(chat_id=target, document=msg.document.file_id, caption=caption)
+        for target in targets:
+            try:
+                if msg.video:
+                    await ctx.bot.send_video(chat_id=target, video=msg.video.file_id, caption=caption)
+                elif msg.photo:
+                    await ctx.bot.send_photo(chat_id=target, photo=msg.photo[-1].file_id, caption=caption)
+                elif msg.animation:
+                    await ctx.bot.send_animation(chat_id=target, animation=msg.animation.file_id, caption=caption)
+                elif msg.document:
+                    await ctx.bot.send_document(chat_id=target, document=msg.document.file_id, caption=caption)
+            except Exception as e:
+                logger.error(f"Fehler beim Weiterleiten an {target}: {e}")
 
         record_media(file_unique_id, file_type, chat_id, user_name, msg.message_id)
         logger.info(f"Weitergeleitet: {file_type} von {user_name} aus {source_title}")
