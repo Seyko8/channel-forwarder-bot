@@ -120,6 +120,11 @@ def load_config() -> dict:
             data = json.load(f)
             for k, v in default.items():
                 data.setdefault(k, v)
+            # Migration: alte target_channel -> target_channels
+            if "target_channel" in data:
+                old = data.pop("target_channel")
+                if old and old not in data["target_channels"]:
+                    data["target_channels"].append(old)
             return data
     return default
 
