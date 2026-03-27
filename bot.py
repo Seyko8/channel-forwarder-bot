@@ -352,8 +352,8 @@ async def handle_media(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if chat_id not in config.get("source_chats", []):
         return
 
-    target = config.get("target_channel")
-    if not target:
+    targets = config.get("target_channels", [])
+    if not targets:
         return
 
     # Determine media type and file_unique_id
