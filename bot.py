@@ -163,10 +163,11 @@ async def menu(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton("📡 Quell-Gruppen anzeigen", callback_data="show_sources")],
-        [InlineKeyboardButton("➕ Quell-Gruppe hinzufügen", callback_data="add_source")],
+        [InlineKeyboardButton("➕ Quell-Gruppen hinzufügen", callback_data="add_source")],
         [InlineKeyboardButton("➖ Quell-Gruppe entfernen", callback_data="remove_source")],
-        [InlineKeyboardButton("🎯 Ziel-Kanal anzeigen", callback_data="show_target")],
-        [InlineKeyboardButton("🎯 Ziel-Kanal setzen", callback_data="set_target")],
+        [InlineKeyboardButton("🎯 Ziel-Kanäle anzeigen", callback_data="show_target")],
+        [InlineKeyboardButton("🎯 Ziel-Kanäle hinzufügen", callback_data="set_target")],
+        [InlineKeyboardButton("➖ Ziel-Kanal entfernen", callback_data="remove_target")],
         [InlineKeyboardButton("📊 Statistiken", callback_data="show_stats")],
         [InlineKeyboardButton("✏️ Caption-Template", callback_data="show_caption")],
     ]
