@@ -441,12 +441,9 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_input))
     app.add_handler(MessageHandler(filters.VIDEO | filters.PHOTO | filters.ANIMATION | filters.Document.VIDEO, handle_media))
 
-    # Bot-Commands setzen
+    # Bot-Commands entfernen (nicht im Menü anzeigen)
     async def post_init(application):
-        await application.bot.set_my_commands([
-            BotCommand("start", "Bot starten"),
-            BotCommand("menu", "Einstellungen öffnen"),
-        ])
+        await application.bot.delete_my_commands()
 
     app.post_init = post_init
 
